@@ -6,3 +6,10 @@ dist/
 *.pkl
 uploads/
 venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+npm-debug.log*
+.env.example.backup
+.cache/
