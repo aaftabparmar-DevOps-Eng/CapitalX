@@ -1,0 +1,3 @@
+npm run dev  frontend start
+npm run start:dev backend start
+python app.py ai-service start

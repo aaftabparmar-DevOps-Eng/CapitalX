@@ -1,0 +1,17 @@
+{
+  "name": "capitalx-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "db:up": "docker compose up -d postgres redis",
+    "db:migrate": "cd backend && npx prisma migrate dev --name init",
+    "db:generate": "cd backend && npx prisma generate",
+    "db:seed": "cd backend && npx ts-node prisma/seed.ts",
+    "db:studio": "cd backend && npx prisma studio",
+    "backend:dev": "cd backend && npm run start:dev",
+    "frontend:dev": "cd frontend && npm run dev",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  }
+}

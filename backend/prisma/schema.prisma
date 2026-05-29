@@ -1,0 +1,395 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  INVESTOR
+  BUSINESS_OWNER
+}
+
+enum KYCStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum BusinessStatus {
+  DRAFT
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum InvestmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  DEFAULTED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  INVESTMENT
+  RETURN
+  ESCROW_LOCK
+  ESCROW_RELEASE
+  PLATFORM_FEE
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum EscrowStatus {
+  LOCKED
+  PENDING_RELEASE
+  RELEASED
+  REFUNDED
+  DISPUTED
+}
+
+enum NotificationType {
+  INVESTMENT_RECEIVED
+  INVESTMENT_APPROVED
+  PAYMENT_RECEIVED
+  KYC_UPDATE
+  ESCROW_RELEASED
+  SYSTEM_ALERT
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+// ─────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────
+
+model User {
+  id            String     @id @default(uuid())
+  email         String     @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  phone         String?
+  role          Role       @default(INVESTOR)
+  kycStatus     KYCStatus  @default(PENDING)
+  isActive      Boolean    @default(true)
+  isEmailVerified Boolean  @default(false)
+  emailVerifyToken String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  sessions      Session[]
+  wallet        Wallet?
+  businesses    Business[]
+  investments   Investment[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model Session {
+  id            String   @id @default(uuid())
+  userId        String
+  refreshToken  String   @unique
+  userAgent     String?
+  ipAddress     String?
+  expiresAt     DateTime
+  isRevoked     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+model Business {
+  id               String         @id @default(uuid())
+  ownerId          String
+  name             String
+  slug             String         @unique
+  description      String
+  industry         String
+  registrationNo   String         @unique
+  taxId            String?
+  website          String?
+  logoUrl          String?
+  status           BusinessStatus @default(DRAFT)
+  targetAmount     Decimal        @db.Decimal(18, 2)
+  raisedAmount     Decimal        @db.Decimal(18, 2) @default(0)
+  minInvestment    Decimal        @db.Decimal(18, 2)
+  maxInvestment    Decimal        @db.Decimal(18, 2)
+  returnRate       Decimal        @db.Decimal(5, 2)  // Annual %
+  tenureMonths     Int
+  closingDate      DateTime?
+  verifiedAt       DateTime?
+  verifiedBy       String?
+  rejectionReason  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  owner            User           @relation(fields: [ownerId], references: [id])
+  investments      Investment[]
+  escrowAccounts   EscrowAccount[]
+  riskScore        AiRiskScore?
+  documents        BusinessDocument[]
+  aadhaarDoc      String?
+  panDoc          String?
+  bankDoc         String?
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([slug])
+  @@map("businesses")
+  
+}
+
+model BusinessDocument {
+  id           String   @id @default(uuid())
+  businessId   String
+  type         String   // financial_report, registration_cert, pitch_deck
+  url          String
+  fileName     String
+  uploadedAt   DateTime @default(now())
+
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("business_documents")
+}
+
+model Investment {
+  id              String           @id @default(uuid())
+  investorId      String
+  businessId      String
+  amount          Decimal          @db.Decimal(18, 2)
+  returnAmount    Decimal?         @db.Decimal(18, 2)
+  status          InvestmentStatus @default(PENDING)
+  notes           String?
+  maturityDate    DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  nextPayoutDate DateTime?
+  actualReturns  Decimal  @default(0) @db.Decimal(18, 2)
+
+  investor        User             @relation(fields: [investorId], references: [id])
+  business        Business         @relation(fields: [businessId], references: [id])
+  escrowAccount   EscrowAccount?
+  transactions    Transaction[]
+  payouts         Payout[]
+
+  @@index([investorId])
+  @@index([businessId])
+  @@index([status])
+  @@map("investments")
+}
+
+model Wallet {
+  id              String        @id @default(uuid())
+  userId          String        @unique
+  balance         Decimal       @db.Decimal(18, 2) @default(0)
+  escrowBalance   Decimal       @db.Decimal(18, 2) @default(0)
+  currency        String        @default("USD")
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+
+  @@index([userId])
+  @@map("wallets")
+}
+
+model Transaction {
+  id              String            @id @default(uuid())
+  walletId        String
+  investmentId    String?
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal           @db.Decimal(18, 2)
+  fee             Decimal           @db.Decimal(18, 2) @default(0)
+  balanceBefore   Decimal           @db.Decimal(18, 2)
+  balanceAfter    Decimal           @db.Decimal(18, 2)
+  reference       String            @unique @default(uuid())
+  description     String?
+  metadata        Json?
+  processedAt     DateTime?
+  createdAt       DateTime          @default(now())
+
+  wallet          Wallet            @relation(fields: [walletId], references: [id])
+  investment      Investment?       @relation(fields: [investmentId], references: [id])
+
+  @@index([walletId])
+  @@index([investmentId])
+  @@index([status])
+  @@index([type])
+  @@map("transactions")
+}
+
+model EscrowAccount {
+  id              String        @id @default(uuid())
+  investmentId    String        @unique
+  businessId      String
+  amount          Decimal       @db.Decimal(18, 2)
+  platformFee     Decimal       @db.Decimal(18, 2) @default(0)
+  status          EscrowStatus  @default(LOCKED)
+  lockedAt        DateTime      @default(now())
+  releasedAt      DateTime?
+  releasedBy      String?
+  releaseNotes    String?
+  refundedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  investment      Investment    @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  business        Business      @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([status])
+  @@map("escrow_accounts")
+}
+
+model Payout {
+  id              String   @id @default(uuid())
+  investmentId    String
+  amount          Decimal  @db.Decimal(18, 2)
+  scheduledDate   DateTime
+  processedDate   DateTime?
+  status          String   @default("SCHEDULED") // SCHEDULED, PROCESSED, FAILED
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  investment      Investment @relation(fields: [investmentId], references: [id])
+
+  @@index([investmentId])
+  @@index([status])
+  @@map("payouts")
+}
+
+model AiRiskScore {
+  id              String    @id @default(uuid())
+  businessId      String    @unique
+  overallScore    Decimal   @db.Decimal(5, 2)  // 0-100
+  riskLevel       RiskLevel
+  financialScore  Decimal   @db.Decimal(5, 2)
+  marketScore     Decimal   @db.Decimal(5, 2)
+  teamScore       Decimal   @db.Decimal(5, 2)
+  complianceScore Decimal   @db.Decimal(5, 2)
+  analysisReport  Json?
+  scoredAt        DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("ai_risk_scores")
+}
+
+model Notification {
+  id              String           @id @default(uuid())
+  userId          String
+  type            NotificationType
+  title           String
+  message         String
+  data            Json?
+  isRead          Boolean          @default(false)
+  readAt          DateTime?
+  createdAt       DateTime         @default(now())
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  action      String
+  entity      String
+  entityId    String?
+  oldData     Json?
+  newData     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+model PlatformFee {
+  id          String   @id @default(uuid())
+  amount      Decimal  @db.Decimal(18, 2)
+  businessId  String
+  businessName String
+  escrowId    String
+  
+  @@map("platform_fees")
+}
+
+model InvestorProtectionFund {
+  id          String   @id @default(uuid())
+  amount      Decimal  @db.Decimal(18, 2)
+  investmentId String
+  investorId  String
+  businessId  String
+  type        String   @default("CONTRIBUTION") // CONTRIBUTION, CLAIM, REFUND
+  status      String   @default("ACTIVE")       // ACTIVE, CLAIMED, REFUNDED
+  notes       String?
+  createdAt   DateTime @default(now())
+  
+  @@map("investor_protection_fund")
+}
+
+model RecoveryCase {
+  id              String   @id @default(uuid())
+  businessId      String
+  businessName    String
+  ownerName       String
+  ownerEmail      String
+  totalDue        Decimal  @db.Decimal(18, 2)
+  daysOverdue     Int      @default(0)
+  investorsCount  Int      @default(0)
+  status          String   @default("WARNING")  // WARNING, NOTICE_SENT, LEGAL, DEFAULTED, RESOLVED
+  lastAction      String?
+  actionDate      DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("recovery_cases")
+}
