@@ -30,7 +30,9 @@ export default function DashboardPage() {
       try {
         const [wRes, pRes] = await Promise.all([walletApi.get(), investmentApi.getPortfolio()]);
         setData({ wallet: wRes.data.data || wRes.data, portfolio: pRes.data.data || pRes.data, recentTx: wRes.data.data?.transactions?.slice(0, 5) || [], loading: false });
-      } catch { setData(prev => ({ ...prev, loading: false })); }
+      } catch {
+        setData((prev: any) => ({ ...prev, loading: false }));
+      }
     };
     load();
   }, [user, router]);
@@ -63,7 +65,6 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-6xl mx-auto">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl sm:text-3xl font-bold text-white">
@@ -76,7 +77,6 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { icon: Wallet, label: 'Available Balance', value: formatCurrency(data.wallet?.balance || 0), trend: 'Ready to invest', color: 'from-blue-500/20 to-blue-600/10 border-blue-500/20', iconBg: 'bg-blue-500/20', iconColor: 'text-blue-400' },
@@ -99,9 +99,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Main Grid */}
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Recent Transactions */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
             className="lg:col-span-2 glass-card p-5 sm:p-6">
             <div className="flex items-center justify-between mb-5">
@@ -143,7 +141,6 @@ export default function DashboardPage() {
             )}
           </motion.div>
 
-          {/* Quick Actions */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
             className="glass-card p-5 sm:p-6">
             <h2 className="font-display font-semibold text-white flex items-center gap-2 mb-5">

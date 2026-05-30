@@ -8,6 +8,12 @@ interface User {
   firstName: string;
   lastName: string;
   role: string;
+
+  phone?: string;
+  location?: string;
+  bio?: string;
+  kycStatus?: string;
+  createdAt?: string;
 }
 
 interface AuthState {

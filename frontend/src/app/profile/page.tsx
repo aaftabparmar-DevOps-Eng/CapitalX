@@ -15,7 +15,7 @@ import {
 import Link from 'next/link';
 
 export default function ProfilePage() {
-  const { user, refreshUser } = useAuthStore();
+  const { user } = useAuthStore();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -57,7 +57,7 @@ export default function ProfilePage() {
         lastName: form.lastName,
         phone: form.phone,
       });
-      await refreshUser();
+      // refreshUser removed
       toast.success('Profile updated!');
       setEditing(false);
     }

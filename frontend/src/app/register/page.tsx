@@ -1,4 +1,5 @@
 'use client';
+import toast from "react-hot-toast";
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -23,7 +24,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     try {
       await registerUser({ firstName: form.firstName, lastName: form.lastName, email: form.email, password: form.password, role: form.role });
-      toast?.success?.('Account created!') || alert('Account created!');
+      toast.success('Account created!');
       router.push('/dashboard');
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || 'Registration failed');
@@ -33,11 +34,9 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-surface flex">
-      {/* Left Brand Panel */}
       <div className="hidden lg:flex flex-1 flex-col justify-center items-center p-14 relative overflow-hidden bg-gradient-to-br from-brand-600/5 via-surface to-purple-600/5">
         <div className="absolute top-20 -left-20 w-96 h-96 bg-brand-500/6 rounded-full blur-[120px]" />
         <div className="absolute bottom-20 right-0 w-80 h-80 bg-purple-400/6 rounded-full blur-[100px]" />
-        
         <div className="relative max-w-lg space-y-12">
           <Link href="/" className="inline-flex items-center gap-3 group">
             <div className="w-14 h-14 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-brand group-hover:scale-105 transition-transform">
@@ -45,17 +44,14 @@ export default function RegisterPage() {
             </div>
             <span className="font-display font-extrabold text-4xl gradient-text">CapitalX</span>
           </Link>
-
           <div>
             <h1 className="font-display text-5xl lg:text-6xl font-extrabold text-white leading-tight">
-              Start Your<br />
-              <span className="gradient-text">Investment</span><br />Journey
+              Start Your<br /><span className="gradient-text">Investment</span><br />Journey
             </h1>
             <p className="mt-6 text-lg text-slate-300 leading-relaxed max-w-md">
               Create your free account in 30 seconds. Browse verified businesses, invest from ₹1,000, and earn fixed monthly returns.
             </p>
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             {[
               { icon: Shield, label: 'Escrow Protected', desc: 'Your funds always safe' },
@@ -78,10 +74,8 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right Form Panel */}
       <div className="flex-1 lg:max-w-lg flex items-center justify-center p-6 sm:p-10 border-l border-white/5">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md space-y-8">
-          
           <div className="text-center lg:hidden">
             <Link href="/" className="inline-flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-xl bg-brand-gradient flex items-center justify-center"><TrendingUp size={20} className="text-white" /></div>
@@ -94,7 +88,6 @@ export default function RegisterPage() {
             <p className="mt-2 text-slate-400">Start your investment journey today</p>
           </div>
 
-          {/* Step Indicator */}
           <div className="flex gap-2">
             {[1, 2].map(s => (
               <div key={s} className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${s <= step ? 'bg-brand-gradient' : 'bg-white/10'}`} />
