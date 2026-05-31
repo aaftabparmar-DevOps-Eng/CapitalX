@@ -31,7 +31,7 @@ export default function DashboardPage() {
         const [wRes, pRes] = await Promise.all([walletApi.get(), investmentApi.getPortfolio()]);
         setData({ wallet: wRes.data.data || wRes.data, portfolio: pRes.data.data || pRes.data, recentTx: wRes.data.data?.transactions?.slice(0, 5) || [], loading: false });
       } catch {
-        setData((prev: any) => ({ ...prev, loading: false }));
+        setData(prev => ({ ...prev, loading: false }));
       }
     };
     load();
