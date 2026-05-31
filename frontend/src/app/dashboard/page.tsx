@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -9,7 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import {
   TrendingUp, Wallet, Building2, Shield, ArrowUpRight,
   Sparkles, PieChart, Target, BrainCircuit,
-  Clock, BarChart3, Loader2, ChevronRight,
+  Clock, BarChart3, RefreshCw, ChevronRight,
   ArrowDownLeft, ArrowUpRight as ArrowUp, Layers
 } from 'lucide-react';
 import Link from 'next/link';
@@ -19,6 +19,42 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>({ wallet: null, portfolio: null, recentTx: [], loading: true });
   const [greeting, setGreeting] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      
+      // Wallet call
+      let walletData = null;
+      try {
+        const wRes = await walletApi.get();
+        walletData = wRes.data.data || wRes.data;
+      } catch (e) {
+        console.error('Wallet fetch failed:', e);
+      }
+
+      // Portfolio call (may fail)
+      let portfolioData = null;
+      try {
+        const pRes = await investmentApi.getPortfolio();
+        portfolioData = pRes.data.data || pRes.data;
+      } catch (e) {
+        console.error('Portfolio fetch failed:', e);
+      }
+
+      setData({
+        wallet: walletData,
+        portfolio: portfolioData,
+        recentTx: walletData?.transactions?.slice(0, 5) || [],
+        loading: false
+      });
+    } catch {
+      setData((prev: any) => ({ ...prev, loading: false }));
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) { router.replace('/admin'); return; }
@@ -26,16 +62,8 @@ export default function DashboardPage() {
     if (hour < 12) setGreeting('Good morning');
     else if (hour < 17) setGreeting('Good afternoon');
     else setGreeting('Good evening');
-    const load = async () => {
-      try {
-        const [wRes, pRes] = await Promise.all([walletApi.get(), investmentApi.getPortfolio()]);
-        setData({ wallet: wRes.data.data || wRes.data, portfolio: pRes.data.data || pRes.data, recentTx: wRes.data.data?.transactions?.slice(0, 5) || [], loading: false });
-      } catch {
-        setData(prev => ({ ...prev, loading: false }));
-      }
-    };
-    load();
-  }, [user, router]);
+    loadData();
+  }, [user, router, loadData]);
 
   if (data.loading) {
     return (
@@ -50,7 +78,11 @@ export default function DashboardPage() {
     );
   }
 
-  const portfolioValue = Number(data.portfolio?.totalInvested || 0);
+  const balance = Number(data.wallet?.balance) || 0;
+  const escrow = Number(data.wallet?.escrowBalance) || 0;
+  const portfolioValue = Number(data.portfolio?.totalInvested) || 0;
+  const pending = Number(data.portfolio?.pending) || 0;
+  const activeCount = data.portfolio?.active || 0;
 
   const txIcons: Record<string, any> = {
     DEPOSIT: <ArrowDownLeft size={16} className="text-emerald-400" />,
@@ -72,17 +104,22 @@ export default function DashboardPage() {
             </h1>
             <p className="text-slate-400 text-sm mt-1">Here&apos;s your financial overview</p>
           </div>
-          <Link href="/businesses" className="btn-primary px-5 py-2.5 text-sm font-semibold shadow-brand hover:shadow-glow">
-            <Sparkles size={16} /> Explore Businesses
-          </Link>
+          <div className="flex gap-2">
+            <button onClick={loadData} disabled={refreshing} className="glass-card px-4 py-2.5 text-sm text-slate-400 hover:text-white flex items-center gap-2 transition-all">
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} /> Refresh
+            </button>
+            <Link href="/businesses" className="btn-primary px-5 py-2.5 text-sm font-semibold shadow-brand hover:shadow-glow">
+              <Sparkles size={16} /> Explore Businesses
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { icon: Wallet, label: 'Available Balance', value: formatCurrency(data.wallet?.balance || 0), trend: 'Ready to invest', color: 'from-blue-500/20 to-blue-600/10 border-blue-500/20', iconBg: 'bg-blue-500/20', iconColor: 'text-blue-400' },
-            { icon: Shield, label: 'In Escrow', value: formatCurrency(data.wallet?.escrowBalance || 0), trend: 'Locked', color: 'from-amber-500/20 to-amber-600/10 border-amber-500/20', iconBg: 'bg-amber-500/20', iconColor: 'text-amber-400' },
-            { icon: TrendingUp, label: 'Portfolio Value', value: formatCurrency(portfolioValue), trend: `${data.portfolio?.active || 0} active investments`, color: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/20', iconBg: 'bg-emerald-500/20', iconColor: 'text-emerald-400' },
-            { icon: Target, label: 'Pending', value: formatCurrency(data.portfolio?.pending || 0), trend: 'Awaiting approval', color: 'from-violet-500/20 to-violet-600/10 border-violet-500/20', iconBg: 'bg-violet-500/20', iconColor: 'text-violet-400' },
+            { icon: Wallet, label: 'Available Balance', value: formatCurrency(balance), trend: 'Ready to invest', color: 'from-blue-500/20 to-blue-600/10 border-blue-500/20', iconBg: 'bg-blue-500/20', iconColor: 'text-blue-400' },
+            { icon: Shield, label: 'In Escrow', value: formatCurrency(escrow), trend: 'Locked', color: 'from-amber-500/20 to-amber-600/10 border-amber-500/20', iconBg: 'bg-amber-500/20', iconColor: 'text-amber-400' },
+            { icon: TrendingUp, label: 'Portfolio Value', value: formatCurrency(portfolioValue), trend: `${activeCount} active investments`, color: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/20', iconBg: 'bg-emerald-500/20', iconColor: 'text-emerald-400' },
+            { icon: Target, label: 'Pending', value: formatCurrency(pending), trend: 'Awaiting approval', color: 'from-violet-500/20 to-violet-600/10 border-violet-500/20', iconBg: 'bg-violet-500/20', iconColor: 'text-violet-400' },
           ].map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.4 }}
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
@@ -132,7 +169,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={`text-sm font-bold font-mono ${['DEPOSIT','ESCROW_RELEASE','RETURN','REFUND'].includes(tx.type) ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {['DEPOSIT','ESCROW_RELEASE','RETURN','REFUND'].includes(tx.type) ? '+' : '-'}{formatCurrency(tx.amount)}
+                        {['DEPOSIT','ESCROW_RELEASE','RETURN','REFUND'].includes(tx.type) ? '+' : '-'}{formatCurrency(Number(tx.amount) || 0)}
                       </p>
                     </div>
                   </motion.div>
@@ -172,3 +209,4 @@ export default function DashboardPage() {
     </DashboardLayout>
   );
 }
+
