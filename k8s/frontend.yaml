@@ -2,71 +2,64 @@ apiVersion: apps/v1
 kind: Deployment
 
 metadata:
-  name: frontend
-  namespace: capitalx
+ name: frontend
+ namespace: capitalx
 
 
 spec:
 
-  replicas: 2
+ replicas: 2
 
 
-  selector:
+ selector:
 
-    matchLabels:
-      app: frontend
-
-
-
-  template:
-
-    metadata:
-
-      labels:
-        app: frontend
+  matchLabels:
+   app: frontend
 
 
-    spec:
+ template:
 
-      containers:
+  metadata:
 
-      - name: frontend
-
-        image: aaftabparmar217/capitalx-frontend:latest
-        imagePullPolicy: Always
+   labels:
+    app: frontend
 
 
-        ports:
+  spec:
 
-        - containerPort: 3000
+   containers:
 
+   - name: frontend
+
+     image: aaftabparmar217/capitalx-frontend:latest
+
+     ports:
+
+     - containerPort: 3000
 
 
 
 ---
-
 apiVersion: v1
 kind: Service
 
-
 metadata:
 
-  name: frontend
-  namespace: capitalx
+ name: frontend
+ namespace: capitalx
 
 
 spec:
 
-  type: NodePort
+ type: NodePort
+
+ selector:
+
+  app: frontend
 
 
-  selector:
+ ports:
 
-    app: frontend
-
-
-  ports:
-
-  - port: 3000
-    targetPort: 3000
-    nodePort: 30000
+ - port: 3000
+   targetPort: 3000
+   nodePort: 30000
