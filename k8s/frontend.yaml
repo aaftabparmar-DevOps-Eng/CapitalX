@@ -33,6 +33,7 @@ template:
 
     image: aaftabparmar217/capitalx-frontend:latest
 
+    imagePullPolicy: Always
 
     ports:
 
