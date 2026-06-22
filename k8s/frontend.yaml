@@ -24,18 +24,18 @@ spec:
    labels:
     app: frontend
 
+spec:
+ containers:
+ - name: frontend
 
-  spec:
+   image: aaftabparmar217/capitalx-frontend:latest
 
-   containers:
+   ports:
+   - containerPort: 3000
 
-   - name: frontend
-
-     image: aaftabparmar217/capitalx-frontend:latest
-
-     ports:
-
-     - containerPort: 3000
+   env:
+   - name: NEXT_PUBLIC_API_URL
+     value: http://backend:3001/api/v1
 
 
 
