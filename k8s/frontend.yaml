@@ -29,7 +29,7 @@ spec:
 
         env:
         - name: NEXT_PUBLIC_API_URL
-          value: http://localhost:3001/api/v1
+          value: http://backend:3001/api/v1
 
 
 ---
