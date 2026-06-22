@@ -34,6 +34,7 @@ template:
 
     image: aaftabparmar217/capitalx-backend:latest
 
+    imagePullPolicy: Always
 
     ports:
 
