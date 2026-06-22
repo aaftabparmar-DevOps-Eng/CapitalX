@@ -2,41 +2,34 @@ apiVersion: apps/v1
 kind: Deployment
 
 metadata:
- name: frontend
- namespace: capitalx
-
-
-spec:
-
- replicas: 2
-
-
- selector:
-
-  matchLabels:
-   app: frontend
-
-
- template:
-
-  metadata:
-
-   labels:
-    app: frontend
+  name: frontend
+  namespace: capitalx
 
 spec:
- containers:
- - name: frontend
+  replicas: 2
 
-   image: aaftabparmar217/capitalx-frontend:latest
+  selector:
+    matchLabels:
+      app: frontend
 
-   ports:
-   - containerPort: 3000
+  template:
+    metadata:
+      labels:
+        app: frontend
 
-   env:
-   - name: NEXT_PUBLIC_API_URL
-     value: http://backend:3001/api/v1
+    spec:
+      containers:
 
+      - name: frontend
+
+        image: aaftabparmar217/capitalx-frontend:latest
+
+        ports:
+        - containerPort: 3000
+
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: http://backend:3001/api/v1
 
 
 ---
@@ -44,22 +37,18 @@ apiVersion: v1
 kind: Service
 
 metadata:
-
- name: frontend
- namespace: capitalx
+  name: frontend
+  namespace: capitalx
 
 
 spec:
+  type: NodePort
 
- type: NodePort
-
- selector:
-
-  app: frontend
+  selector:
+    app: frontend
 
 
- ports:
-
- - port: 3000
-   targetPort: 3000
-   nodePort: 30000
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30000
