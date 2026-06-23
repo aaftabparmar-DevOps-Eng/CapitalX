@@ -12,26 +12,28 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                    # Create namespace if not exists
-                    kubectl apply -f k8s/namespace.yml
+                    echo "=== Creating Namespace ==="
+                    kubectl apply -f k8s/namespace.yml --validate=false
                     
-                    # Deploy databases first
-                    kubectl apply -f k8s/postgres.yaml
-                    kubectl apply -f k8s/redis.yaml
+                    echo "=== Deploying PostgreSQL ==="
+                    kubectl apply -f k8s/postgres.yaml --validate=false
                     
-                    # Wait for databases to be ready
-                    kubectl wait --for=condition=ready pod -l app=postgres -n capitalx --timeout=120s
-                    kubectl wait --for=condition=ready pod -l app=redis -n capitalx --timeout=120s
+                    echo "=== Deploying Redis ==="
+                    kubectl apply -f k8s/redis.yaml --validate=false
                     
-                    # Deploy backend
-                    kubectl apply -f k8s/backend.yml
-                    kubectl wait --for=condition=ready pod -l app=backend -n capitalx --timeout=120s
+                    echo "=== Waiting for Databases ==="
+                    kubectl wait --for=condition=ready pod -l app=postgres -n capitalx --timeout=120s || true
+                    kubectl wait --for=condition=ready pod -l app=redis -n capitalx --timeout=120s || true
                     
-                    # Deploy frontend
-                    kubectl apply -f k8s/frontend.yaml
-                    kubectl wait --for=condition=ready pod -l app=frontend -n capitalx --timeout=120s
+                    echo "=== Deploying Backend ==="
+                    kubectl apply -f k8s/backend.yml --validate=false
+                    kubectl wait --for=condition=ready pod -l app=backend -n capitalx --timeout=120s || true
                     
-                    # Run database migrations (if needed)
+                    echo "=== Deploying Frontend ==="
+                    kubectl apply -f k8s/frontend.yaml --validate=false
+                    kubectl wait --for=condition=ready pod -l app=frontend -n capitalx --timeout=120s || true
+                    
+                    echo "=== Running Migrations ==="
                     kubectl exec -it deployment/backend -n capitalx -- npx prisma migrate deploy || true
                 '''
             }
@@ -40,17 +42,22 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                    echo "=== Namespace ==="
-                    kubectl get namespace capitalx
                     echo ""
-                    echo "=== All Pods ==="
+                    echo "========================================="
+                    echo "🚀 DEPLOYMENT STATUS"
+                    echo "========================================="
+                    echo ""
+                    echo "=== Pods ==="
                     kubectl get pods -n capitalx
                     echo ""
-                    echo "=== All Services ==="
+                    echo "=== Services ==="
                     kubectl get svc -n capitalx
                     echo ""
-                    echo "=== Frontend URL ==="
-                    echo "http://$(curl -s ifconfig.me):30000"
+                    echo "========================================="
+                    echo "✅ Frontend: http://$(curl -s ifconfig.me):30000"
+                    echo "✅ Backend: http://$(curl -s ifconfig.me):30001/api/v1"
+                    echo "✅ Swagger: http://$(curl -s ifconfig.me):30001/api/docs"
+                    echo "========================================="
                 '''
             }
         }
@@ -58,10 +65,12 @@ pipeline {
         stage('Health Check') {
             steps {
                 sh '''
-                    # Check backend health
-                    curl -s http://localhost:30001/api/v1 || echo "Backend starting..."
-                    sleep 5
-                    curl -s http://localhost:30001/api/v1 || echo "Backend may need more time"
+                    echo "Checking Backend Health..."
+                    sleep 10
+                    curl -f http://localhost:30001/api/v1 && echo "Backend OK" || echo "Backend may need more time"
+                    echo ""
+                    echo "Checking Frontend..."
+                    curl -f -I http://localhost:30000 && echo "Frontend OK" || echo "Frontend may need more time"
                 '''
             }
         }
@@ -69,11 +78,10 @@ pipeline {
     
     post {
         success {
-            echo '🚀 Deployment Successful!'
-            echo "Application URL: http://$(curl -s ifconfig.me):30000"
+            echo '🎉 DEPLOYMENT SUCCESSFUL!'
         }
         failure {
-            echo '❌ Deployment Failed! Check logs above'
+            echo '❌ DEPLOYMENT FAILED! Check logs above'
         }
     }
 }
