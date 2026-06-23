@@ -36,7 +36,7 @@ spec:
         - name: JWT_REFRESH_EXPIRES
           value: "7d"
         - name: FRONTEND_URL
-          value: "http://localhost:30000"
+          value: "http://16.59.47.165:30000"
         - name: ESCROW_PLATFORM_FEE_PERCENT
           value: "2.5"
         readinessProbe:

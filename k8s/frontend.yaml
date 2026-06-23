@@ -20,7 +20,7 @@ spec:
         - containerPort: 3000
         env:
         - name: NEXT_PUBLIC_API_URL
-          value: "http://backend:3001/api/v1"
+          value: "http://16.59.47.165:30001/api/v1"
         - name: NODE_ENV
           value: production
 ---

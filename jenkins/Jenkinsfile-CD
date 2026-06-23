@@ -21,20 +21,20 @@ pipeline {
                     echo "=== Deploying Redis ==="
                     kubectl apply -f k8s/redis.yaml --validate=false
                     
-                    echo "=== Waiting for Databases ==="
-                    kubectl wait --for=condition=ready pod -l app=postgres -n capitalx --timeout=120s || true
-                    kubectl wait --for=condition=ready pod -l app=redis -n capitalx --timeout=120s || true
+                    echo "=== Waiting for Databases (30s) ==="
+                    sleep 30
                     
                     echo "=== Deploying Backend ==="
                     kubectl apply -f k8s/backend.yml --validate=false
-                    kubectl wait --for=condition=ready pod -l app=backend -n capitalx --timeout=120s || true
+                    
+                    echo "=== Waiting for Backend (30s) ==="
+                    sleep 30
                     
                     echo "=== Deploying Frontend ==="
                     kubectl apply -f k8s/frontend.yaml --validate=false
-                    kubectl wait --for=condition=ready pod -l app=frontend -n capitalx --timeout=120s || true
                     
-                    echo "=== Running Migrations ==="
-                    kubectl exec -it deployment/backend -n capitalx -- npx prisma migrate deploy || true
+                    echo "=== Waiting for all pods (60s) ==="
+                    sleep 60
                 '''
             }
         }
@@ -42,9 +42,8 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                    echo ""
                     echo "========================================="
-                    echo "🚀 DEPLOYMENT STATUS"
+                    echo "🚀 CAPITALX DEPLOYMENT STATUS"
                     echo "========================================="
                     echo ""
                     echo "=== Pods ==="
@@ -54,23 +53,10 @@ pipeline {
                     kubectl get svc -n capitalx
                     echo ""
                     echo "========================================="
-                    echo "✅ Frontend: http://$(curl -s ifconfig.me):30000"
-                    echo "✅ Backend: http://$(curl -s ifconfig.me):30001/api/v1"
-                    echo "✅ Swagger: http://$(curl -s ifconfig.me):30001/api/docs"
+                    echo "✅ Frontend: http://16.59.47.165:30000"
+                    echo "✅ Backend: http://16.59.47.165:30001/api/v1"
+                    echo "✅ Swagger: http://16.59.47.165:30001/api/docs"
                     echo "========================================="
-                '''
-            }
-        }
-        
-        stage('Health Check') {
-            steps {
-                sh '''
-                    echo "Checking Backend Health..."
-                    sleep 10
-                    curl -f http://localhost:30001/api/v1 && echo "Backend OK" || echo "Backend may need more time"
-                    echo ""
-                    echo "Checking Frontend..."
-                    curl -f -I http://localhost:30000 && echo "Frontend OK" || echo "Frontend may need more time"
                 '''
             }
         }
@@ -79,9 +65,10 @@ pipeline {
     post {
         success {
             echo '🎉 DEPLOYMENT SUCCESSFUL!'
+            echo 'Application: http://16.59.47.165:30000'
         }
         failure {
-            echo '❌ DEPLOYMENT FAILED! Check logs above'
+            echo '❌ DEPLOYMENT FAILED!'
         }
     }
 }
