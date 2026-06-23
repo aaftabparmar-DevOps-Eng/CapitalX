@@ -15,6 +15,30 @@ pipeline {
             }
         }
         
+        stage('Setup Env Files') {
+            steps {
+                sh '''
+                    IP=$(curl -s ifconfig.me)
+                    
+                    cat > frontend/.env.local << EOF
+NEXT_PUBLIC_API_URL=http://${IP}:30001/api/v1
+EOF
+                    
+                    cat > backend/.env << EOF
+NODE_ENV=production
+PORT=3001
+FRONTEND_URL=http://${IP}:30000
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/capitalx_db?schema=public
+JWT_ACCESS_SECRET=capitalx_access_jwt_secret_change_in_production
+JWT_REFRESH_SECRET=capitalx_refresh_jwt_secret_change_in_production
+REDIS_URL=redis://redis:6379
+EOF
+                    
+                    echo "✅ Env files created with IP: ${IP}"
+                '''
+            }
+        }
+        
         stage('Docker Build') {
             parallel {
                 stage('Build Backend') {
