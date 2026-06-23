@@ -1,87 +1,61 @@
 pipeline {
-
-agent any
-
-
-environment {
-
-BACKEND="aaftabparmar217/capitalx-backend"
-FRONTEND="aaftabparmar217/capitalx-frontend"
-
-}
-
-
-stages {
-
-
-stage('Checkout') {
-
-    steps {
-
-        git branch: 'main',
-        url: 'https://github.com/aaftabparmar-DevOps-Eng/CapitalX.git'
-
+    agent any
+    
+    environment {
+        BACKEND_IMAGE = "aaftabparmar217/capitalx-backend"
+        FRONTEND_IMAGE = "aaftabparmar217/capitalx-frontend"
+        BUILD_NUMBER = "${env.BUILD_ID}"
     }
-
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/aaftabparmar-DevOps-Eng/CapitalX.git'
+            }
+        }
+        
+        stage('Docker Build') {
+            parallel {
+                stage('Build Backend') {
+                    steps {
+                        sh 'docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -t ${BACKEND_IMAGE}:latest ./backend'
+                    }
+                }
+                stage('Build Frontend') {
+                    steps {
+                        sh 'docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} -t ${FRONTEND_IMAGE}:latest ./frontend'
+                    }
+                }
+            }
+        }
+        
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-hub-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}
+                        docker push ${BACKEND_IMAGE}:latest
+                        docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}
+                        docker push ${FRONTEND_IMAGE}:latest
+                        docker logout
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '✅ CI Pipeline Complete - Images pushed to Docker Hub'
+        }
+        failure {
+            echo '❌ CI Pipeline Failed'
+        }
+    }
 }
-
-
-
-stage('Docker Build'){
-
-
-steps{
-
-sh '''
-
-docker build -t $BACKEND:$BUILD_NUMBER backend
-
-docker build -t $FRONTEND:$BUILD_NUMBER frontend
-
-'''
-
-}
-
-}
-
-
-
-stage('Docker Push'){
-
-steps{
-
-withCredentials([
-usernamePassword(
-credentialsId:'dockerhub',
-usernameVariable:'USER',
-passwordVariable:'PASS'
-)
-]){
-
-
-sh '''
-
-echo $PASS | docker login -u $USER --password-stdin
-
-
-docker push $BACKEND:$BUILD_NUMBER
-
-docker push $FRONTEND:$BUILD_NUMBER
-
-
-'''
-
-}
-
-
-}
-
-}
-
-
-
-}
-
-
-}
-

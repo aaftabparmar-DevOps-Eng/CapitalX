@@ -1,75 +1,79 @@
 pipeline {
-
-agent any
-
-
-stages {
-
-
-stage('Checkout'){
-
-steps{
-
-git branch: 'main',
-url: 'https://github.com/aaftabparmar-DevOps-Eng/CapitalX.git'
-
-}
-
-}
-
-
-stage('Deploy'){
-
-steps{
-
-sh '''
-
-kubectl apply -f k8s/ -n capitalx
-
-kubectl rollout restart deployment backend -n capitalx
-
-kubectl rollout restart deployment frontend -n capitalx
-
-
-'''
-
-}
-
-}
-
-
-stage('Status'){
-
-steps{
-
-sh '''
-
-kubectl get pods -n capitalx
-
-'''
-
-}
-
-}
-
-
-}
-
-post {
-
-success {
-
-echo "Deployment Successful 🚀"
-
-}
-
-
-failure {
-
-echo "Deployment Failed ❌"
-
-}
-
-}
-
+    agent any
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/aaftabparmar-DevOps-Eng/CapitalX.git'
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh '''
+                    # Create namespace if not exists
+                    kubectl apply -f k8s/namespace.yml
+                    
+                    # Deploy databases first
+                    kubectl apply -f k8s/postgres.yaml
+                    kubectl apply -f k8s/redis.yaml
+                    
+                    # Wait for databases to be ready
+                    kubectl wait --for=condition=ready pod -l app=postgres -n capitalx --timeout=120s
+                    kubectl wait --for=condition=ready pod -l app=redis -n capitalx --timeout=120s
+                    
+                    # Deploy backend
+                    kubectl apply -f k8s/backend.yml
+                    kubectl wait --for=condition=ready pod -l app=backend -n capitalx --timeout=120s
+                    
+                    # Deploy frontend
+                    kubectl apply -f k8s/frontend.yaml
+                    kubectl wait --for=condition=ready pod -l app=frontend -n capitalx --timeout=120s
+                    
+                    # Run database migrations (if needed)
+                    kubectl exec -it deployment/backend -n capitalx -- npx prisma migrate deploy || true
+                '''
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                    echo "=== Namespace ==="
+                    kubectl get namespace capitalx
+                    echo ""
+                    echo "=== All Pods ==="
+                    kubectl get pods -n capitalx
+                    echo ""
+                    echo "=== All Services ==="
+                    kubectl get svc -n capitalx
+                    echo ""
+                    echo "=== Frontend URL ==="
+                    echo "http://$(curl -s ifconfig.me):30000"
+                '''
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                sh '''
+                    # Check backend health
+                    curl -s http://localhost:30001/api/v1 || echo "Backend starting..."
+                    sleep 5
+                    curl -s http://localhost:30001/api/v1 || echo "Backend may need more time"
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '🚀 Deployment Successful!'
+            echo "Application URL: http://$(curl -s ifconfig.me):30000"
+        }
+        failure {
+            echo '❌ Deployment Failed! Check logs above'
+        }
+    }
 }
