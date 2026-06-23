@@ -1,0 +1,87 @@
+pipeline {
+
+agent any
+
+
+environment {
+
+BACKEND="aaftabparmar217/capitalx-backend"
+FRONTEND="aaftabparmar217/capitalx-frontend"
+
+}
+
+
+stages {
+
+
+stage('Checkout') {
+
+    steps {
+
+        git branch: 'main',
+        url: 'https://github.com/aaftabparmar-DevOps-Eng/CapitalX.git'
+
+    }
+
+}
+
+
+
+stage('Docker Build'){
+
+
+steps{
+
+sh '''
+
+docker build -t $BACKEND:$BUILD_NUMBER backend
+
+docker build -t $FRONTEND:$BUILD_NUMBER frontend
+
+'''
+
+}
+
+}
+
+
+
+stage('Docker Push'){
+
+steps{
+
+withCredentials([
+usernamePassword(
+credentialsId:'dockerhub',
+usernameVariable:'USER',
+passwordVariable:'PASS'
+)
+]){
+
+
+sh '''
+
+echo $PASS | docker login -u $USER --password-stdin
+
+
+docker push $BACKEND:$BUILD_NUMBER
+
+docker push $FRONTEND:$BUILD_NUMBER
+
+
+'''
+
+}
+
+
+}
+
+}
+
+
+
+}
+
+
+}
+
