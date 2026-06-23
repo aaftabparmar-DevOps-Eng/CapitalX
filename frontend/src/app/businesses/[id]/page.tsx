@@ -57,7 +57,7 @@ export default function BusinessDetailPage() {
   const handleRefreshAI = async () => {
     setAiLoading(true);
     try {
-      await fetch(`http://localhost:3001/api/v1/ai-risk/score/${id}`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` } });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ai-risk/score/${id}`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` } });
       toast.success('AI Score refreshed!');
       const bRes = await businessApi.getOne(id); setBusiness(bRes.data.data || bRes.data);
     } catch { toast.error('AI refresh failed'); }

@@ -20,11 +20,11 @@ pipeline {
                 sh '''
                     IP=$(curl -s ifconfig.me)
                     
-                    cat > frontend/.env.local << EOF
+                    cat > frontend/.env.local << EOT
 NEXT_PUBLIC_API_URL=http://${IP}:30001/api/v1
-EOF
+EOT
                     
-                    cat > backend/.env << EOF
+                    cat > backend/.env << EOT
 NODE_ENV=production
 PORT=3001
 FRONTEND_URL=http://${IP}:30000
@@ -32,7 +32,7 @@ DATABASE_URL=postgresql://postgres:postgres@postgres:5432/capitalx_db?schema=pub
 JWT_ACCESS_SECRET=capitalx_access_jwt_secret_change_in_production
 JWT_REFRESH_SECRET=capitalx_refresh_jwt_secret_change_in_production
 REDIS_URL=redis://redis:6379
-EOF
+EOT
                     
                     echo "✅ Env files created with IP: ${IP}"
                 '''
@@ -40,17 +40,12 @@ EOF
         }
         
         stage('Docker Build') {
-            parallel {
-                stage('Build Backend') {
-                    steps {
-                        sh 'docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -t ${BACKEND_IMAGE}:latest ./backend'
-                    }
-                }
-                stage('Build Frontend') {
-                    steps {
-                        sh 'docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} -t ${FRONTEND_IMAGE}:latest ./frontend'
-                    }
-                }
+            steps {
+                sh '''
+                    IP=$(curl -s ifconfig.me)
+                    docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -t ${BACKEND_IMAGE}:latest ./backend
+                    docker build --build-arg NEXT_PUBLIC_API_URL=http://${IP}:30001/api/v1 -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} -t ${FRONTEND_IMAGE}:latest ./frontend
+                '''
             }
         }
         
