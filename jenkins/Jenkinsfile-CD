@@ -9,9 +9,20 @@ pipeline {
             }
         }
         
+        stage('Set K8s Env with EC2 IP') {
+            steps {
+                sh '''
+                    IP=$(curl -s ifconfig.me)
+                    echo "Setting EC2 IP: ${IP}"
+                '''
+            }
+        }
+        
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
+                    IP=$(curl -s ifconfig.me)
+                    
                     echo "=== Creating Namespace ==="
                     kubectl apply -f k8s/namespace.yml --validate=false
                     
@@ -26,12 +37,14 @@ pipeline {
                     
                     echo "=== Deploying Backend ==="
                     kubectl apply -f k8s/backend.yml --validate=false
+                    kubectl set env deployment/backend -n capitalx FRONTEND_URL="http://${IP}:30000"
                     
                     echo "=== Waiting for Backend (30s) ==="
                     sleep 30
                     
                     echo "=== Deploying Frontend ==="
                     kubectl apply -f k8s/frontend.yaml --validate=false
+                    kubectl set env deployment/frontend -n capitalx NEXT_PUBLIC_API_URL="http://${IP}:30001/api/v1"
                     
                     echo "=== Waiting for all pods (60s) ==="
                     sleep 60
@@ -42,6 +55,7 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
+                    IP=$(curl -s ifconfig.me)
                     echo "========================================="
                     echo "🚀 CAPITALX DEPLOYMENT STATUS"
                     echo "========================================="
@@ -53,9 +67,9 @@ pipeline {
                     kubectl get svc -n capitalx
                     echo ""
                     echo "========================================="
-                    echo "✅ Frontend: http://16.59.47.165:30000"
-                    echo "✅ Backend: http://16.59.47.165:30001/api/v1"
-                    echo "✅ Swagger: http://16.59.47.165:30001/api/docs"
+                    echo "✅ Frontend: http://${IP}:30000"
+                    echo "✅ Backend: http://${IP}:30001/api/v1"
+                    echo "✅ Swagger: http://${IP}:30001/api/docs"
                     echo "========================================="
                 '''
             }
@@ -64,8 +78,11 @@ pipeline {
     
     post {
         success {
-            echo '🎉 DEPLOYMENT SUCCESSFUL!'
-            echo 'Application: http://16.59.47.165:30000'
+            sh '''
+                IP=$(curl -s ifconfig.me)
+                echo '🎉 DEPLOYMENT SUCCESSFUL!'
+                echo "Application: http://${IP}:30000"
+            '''
         }
         failure {
             echo '❌ DEPLOYMENT FAILED!'
