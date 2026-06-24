@@ -19,11 +19,9 @@ pipeline {
             steps {
                 sh '''
                     IP=$(curl -s ifconfig.me)
-                    
                     cat > frontend/.env.local << EOT
 NEXT_PUBLIC_API_URL=http://${IP}:30001/api/v1
 EOT
-                    
                     cat > backend/.env << EOT
 NODE_ENV=production
 PORT=3001
@@ -33,9 +31,36 @@ JWT_ACCESS_SECRET=capitalx_access_jwt_secret_change_in_production
 JWT_REFRESH_SECRET=capitalx_refresh_jwt_secret_change_in_production
 REDIS_URL=redis://redis:6379
 EOT
-                    
                     echo "✅ Env files created with IP: ${IP}"
                 '''
+            }
+        }
+        
+        stage('Trivy Security Scan') {
+            steps {
+                sh '''
+                    echo "🔍 Running Trivy Security Scan..."
+                    trivy fs --severity HIGH,CRITICAL --no-progress --exit-code 0 . || true
+                    echo "✅ Trivy Scan Complete"
+                '''
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh '''
+                        echo "📊 Running SonarQube Analysis..."
+                        cd backend && npm install --silent 2>/dev/null || true
+                        npx sonar-scanner \
+                          -Dsonar.projectKey=capitalx-backend \
+                          -Dsonar.sources=src \
+                          -Dsonar.language=ts \
+                          -Dsonar.sourceEncoding=UTF-8 || true
+                        cd ..
+                        echo "✅ SonarQube Analysis Complete"
+                    '''
+                }
             }
         }
         
@@ -43,8 +68,12 @@ EOT
             steps {
                 sh '''
                     IP=$(curl -s ifconfig.me)
+                    echo "🐳 Building Backend..."
                     docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -t ${BACKEND_IMAGE}:latest ./backend
-                    docker build --build-arg NEXT_PUBLIC_API_URL=http://${IP}:30001/api/v1 -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} -t ${FRONTEND_IMAGE}:latest ./frontend
+                    echo "🐳 Building Frontend..."
+                    docker build --build-arg NEXT_PUBLIC_API_URL=http://${IP}:30001/api/v1 \
+                      -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} -t ${FRONTEND_IMAGE}:latest ./frontend
+                    echo "✅ Docker Build Complete"
                 '''
             }
         }
@@ -63,6 +92,7 @@ EOT
                         docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}
                         docker push ${FRONTEND_IMAGE}:latest
                         docker logout
+                        echo "✅ Docker Push Complete"
                     '''
                 }
             }
@@ -71,10 +101,33 @@ EOT
     
     post {
         success {
-            echo '✅ CI Pipeline Complete - Images pushed to Docker Hub'
+            emailext(
+                subject: "✅ CAPITALX CI SUCCESS - Build #${BUILD_NUMBER}",
+                body: """
+                    <h2>🎉 CI Pipeline Passed!</h2>
+                    <p><b>Build:</b> #${BUILD_NUMBER}</p>
+                    <p><b>Images Pushed:</b></p>
+                    <ul>
+                        <li>${BACKEND_IMAGE}:${BUILD_NUMBER}</li>
+                        <li>${FRONTEND_IMAGE}:${BUILD_NUMBER}</li>
+                    </ul>
+                    <p><a href="${BUILD_URL}">View Build</a></p>
+                """,
+                mimeType: 'text/html',
+                to: 'aaftabparmar217@gmail.com'
+            )
         }
         failure {
-            echo '❌ CI Pipeline Failed'
+            emailext(
+                subject: "❌ CAPITALX CI FAILED - Build #${BUILD_NUMBER}",
+                body: """
+                    <h2>❌ CI Pipeline Failed!</h2>
+                    <p><b>Build:</b> #${BUILD_NUMBER}</p>
+                    <p><a href="${BUILD_URL}">Check Logs</a></p>
+                """,
+                mimeType: 'text/html',
+                to: 'aaftabparmar217@gmail.com'
+            )
         }
     }
 }

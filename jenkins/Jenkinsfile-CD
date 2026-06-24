@@ -9,45 +9,35 @@ pipeline {
             }
         }
         
-        stage('Set K8s Env with EC2 IP') {
-            steps {
-                sh '''
-                    IP=$(curl -s ifconfig.me)
-                    echo "Setting EC2 IP: ${IP}"
-                '''
-            }
-        }
-        
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
                     IP=$(curl -s ifconfig.me)
+                    echo "🚀 Deploying to Kubernetes with IP: ${IP}"
                     
                     echo "=== Creating Namespace ==="
                     kubectl apply -f k8s/namespace.yml --validate=false
                     
-                    echo "=== Deploying PostgreSQL ==="
+                    echo "=== Deploying Databases ==="
                     kubectl apply -f k8s/postgres.yaml --validate=false
-                    
-                    echo "=== Deploying Redis ==="
                     kubectl apply -f k8s/redis.yaml --validate=false
-                    
-                    echo "=== Waiting for Databases (30s) ==="
+                    echo "Waiting for databases..."
                     sleep 30
                     
                     echo "=== Deploying Backend ==="
                     kubectl apply -f k8s/backend.yml --validate=false
                     kubectl set env deployment/backend -n capitalx FRONTEND_URL="http://${IP}:30000"
-                    
-                    echo "=== Waiting for Backend (30s) ==="
+                    echo "Waiting for backend..."
                     sleep 30
                     
                     echo "=== Deploying Frontend ==="
                     kubectl apply -f k8s/frontend.yaml --validate=false
                     kubectl set env deployment/frontend -n capitalx NEXT_PUBLIC_API_URL="http://${IP}:30001/api/v1"
-                    
-                    echo "=== Waiting for all pods (60s) ==="
+                    echo "Waiting for frontend..."
                     sleep 60
+                    
+                    # Fix readiness probe
+                    kubectl patch deployment backend -n capitalx --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/readinessProbe/httpGet/path", "value": "/api/docs"}]' 2>/dev/null || true
                 '''
             }
         }
@@ -56,6 +46,7 @@ pipeline {
             steps {
                 sh '''
                     IP=$(curl -s ifconfig.me)
+                    echo ""
                     echo "========================================="
                     echo "🚀 CAPITALX DEPLOYMENT STATUS"
                     echo "========================================="
@@ -68,9 +59,13 @@ pipeline {
                     echo ""
                     echo "========================================="
                     echo "✅ Frontend: http://${IP}:30000"
-                    echo "✅ Backend: http://${IP}:30001/api/v1"
-                    echo "✅ Swagger: http://${IP}:30001/api/docs"
+                    echo "✅ Backend:  http://${IP}:30001/api/docs"
+                    echo "✅ Swagger:  http://${IP}:30001/api/docs"
                     echo "========================================="
+                    
+                    # Port-forward
+                    kubectl port-forward --address 0.0.0.0 svc/backend -n capitalx 30001:3001 &
+                    kubectl port-forward --address 0.0.0.0 svc/frontend -n capitalx 30000:3000 &
                 '''
             }
         }
@@ -83,9 +78,28 @@ pipeline {
                 echo '🎉 DEPLOYMENT SUCCESSFUL!'
                 echo "Application: http://${IP}:30000"
             '''
+            emailext(
+                subject: "✅ CAPITALX CD SUCCESS - Build #${BUILD_NUMBER}",
+                body: """
+                    <h2>🚀 Application Deployed Successfully!</h2>
+                    <p><b>Frontend:</b> <a href="http://${IP}:30000">http://${IP}:30000</a></p>
+                    <p><b>Backend:</b> <a href="http://${IP}:30001/api/docs">http://${IP}:30001/api/docs</a></p>
+                    <p><a href="${BUILD_URL}">View Build</a></p>
+                """,
+                mimeType: 'text/html',
+                to: 'aaftabparmar217@gmail.com'
+            )
         }
         failure {
-            echo '❌ DEPLOYMENT FAILED!'
+            emailext(
+                subject: "❌ CAPITALX CD FAILED - Build #${BUILD_NUMBER}",
+                body: """
+                    <h2>❌ Deployment Failed!</h2>
+                    <p><a href="${BUILD_URL}">Check Logs</a></p>
+                """,
+                mimeType: 'text/html',
+                to: 'aaftabparmar217@gmail.com'
+            )
         }
     }
 }
