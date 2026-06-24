@@ -87,7 +87,7 @@ pipeline {
                     <p><a href="${BUILD_URL}">View Build</a></p>
                 """,
                 mimeType: 'text/html',
-                to: 'aaftabparmar217@gmail.com'
+                to: 'aaftabparmar29@gmail.com'
             )
         }
         failure {
@@ -98,7 +98,7 @@ pipeline {
                     <p><a href="${BUILD_URL}">Check Logs</a></p>
                 """,
                 mimeType: 'text/html',
-                to: 'aaftabparmar217@gmail.com'
+                to: 'aaftabparmar29@gmail.com'
             )
         }
     }
