@@ -13,3 +13,6 @@ __pycache__/
 npm-debug.log*
 .env.example.backup
 .cache/
+secret.txt
+awscliv2.zip
+*.zip
