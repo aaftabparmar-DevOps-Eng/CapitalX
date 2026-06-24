@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+    environment {
+        AWS_REGION = "us-east-2"
+        ECR_URL = "410244537877.dkr.ecr.us-east-2.amazonaws.com"
+        BUILD_NUMBER = "${env.BUILD_ID}"
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/aaftabparmar-DevOps-Eng/CapitalX.git'
+            }
+        }
+        stage('Trivy Security Scan') {
+            steps {
+                sh 'trivy fs --severity HIGH,CRITICAL --no-progress --exit-code 0 . || true'
+            }
+        }
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh '''
+                        cd backend && npm install --silent 2>/dev/null || true
+                        npx sonar-scanner -Dsonar.projectKey=capitalx-backend -Dsonar.sources=src -Dsonar.language=ts || true
+                        cd ..
+                    '''
+                }
+            }
+        }
+        stage('Docker Build & Push to ECR') {
+            steps {
+                withAWS(credentials: 'aws-credentials', region: 'us-east-2') {
+                    sh '''
+                        aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_URL}
+                        docker build -t capitalx-backend:${BUILD_NUMBER} ./backend
+                        docker tag capitalx-backend:${BUILD_NUMBER} ${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
+                        docker push ${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
+                        docker build -t capitalx-frontend:${BUILD_NUMBER} ./frontend
+                        docker tag capitalx-frontend:${BUILD_NUMBER} ${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}
+                        docker push ${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            emailext(subject: "✅ EKS CI SUCCESS - #${BUILD_NUMBER}", to: 'aaftabparmar29@gmail.com')
+        }
+        failure {
+            emailext(subject: "❌ EKS CI FAILED - #${BUILD_NUMBER}", to: 'aaftabparmar29@gmail.com')
+        }
+    }
+}

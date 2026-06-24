@@ -1,0 +1,34 @@
+pipeline {
+    agent any
+    environment {
+        AWS_REGION = "us-east-2"
+        ECR_URL = "410244537877.dkr.ecr.us-east-2.amazonaws.com"
+        EKS_CLUSTER = "capitalx-prod"
+        BUILD_NUMBER = "${env.BUILD_ID}"
+    }
+    stages {
+        stage('Deploy to EKS') {
+            steps {
+                withAWS(credentials: 'aws-credentials', region: 'us-east-2') {
+                    sh '''
+                        aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}
+                        kubectl set image deployment/backend -n capitalx backend=${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
+                        kubectl set image deployment/frontend -n capitalx frontend=${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}
+                        kubectl rollout status deployment/backend -n capitalx --timeout=120s
+                        kubectl rollout status deployment/frontend -n capitalx --timeout=120s
+                        ALB=$(kubectl get ingress capitalx-ingress -n capitalx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+                        echo "Application: http://${ALB}"
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            emailext(subject: "✅ EKS CD SUCCESS - #${BUILD_NUMBER}", to: 'aaftabparmar29@gmail.com')
+        }
+        failure {
+            emailext(subject: "❌ EKS CD FAILED - #${BUILD_NUMBER}", to: 'aaftabparmar29@gmail.com')
+        }
+    }
+}
