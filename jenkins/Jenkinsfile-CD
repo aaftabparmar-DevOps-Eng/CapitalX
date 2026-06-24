@@ -1,6 +1,10 @@
 pipeline {
     agent any
     
+    environment {
+        EC2_IP = ""
+    }
+    
     stages {
         stage('Checkout') {
             steps {
@@ -36,8 +40,10 @@ pipeline {
                     echo "Waiting for frontend..."
                     sleep 60
                     
-                    # Fix readiness probe
                     kubectl patch deployment backend -n capitalx --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/readinessProbe/httpGet/path", "value": "/api/docs"}]' 2>/dev/null || true
+                    
+                    # Save IP to file
+                    echo ${IP} > /tmp/ec2_ip.txt
                 '''
             }
         }
@@ -45,7 +51,7 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                    IP=$(curl -s ifconfig.me)
+                    IP=$(cat /tmp/ec2_ip.txt)
                     echo ""
                     echo "========================================="
                     echo "🚀 CAPITALX DEPLOYMENT STATUS"
@@ -60,12 +66,10 @@ pipeline {
                     echo "========================================="
                     echo "✅ Frontend: http://${IP}:30000"
                     echo "✅ Backend:  http://${IP}:30001/api/docs"
-                    echo "✅ Swagger:  http://${IP}:30001/api/docs"
                     echo "========================================="
                     
-                    # Port-forward
-                    kubectl port-forward --address 0.0.0.0 svc/backend -n capitalx 30001:3001 &
                     kubectl port-forward --address 0.0.0.0 svc/frontend -n capitalx 30000:3000 &
+                    kubectl port-forward --address 0.0.0.0 svc/backend -n capitalx 30001:3001 &
                 '''
             }
         }
@@ -73,22 +77,22 @@ pipeline {
     
     post {
         success {
-            sh '''
-                IP=$(curl -s ifconfig.me)
-                echo '🎉 DEPLOYMENT SUCCESSFUL!'
-                echo "Application: http://${IP}:30000"
-            '''
-            emailext(
-                subject: "✅ CAPITALX CD SUCCESS - Build #${BUILD_NUMBER}",
-                body: """
-                    <h2>🚀 Application Deployed Successfully!</h2>
-                    <p><b>Frontend:</b> <a href="http://${IP}:30000">http://${IP}:30000</a></p>
-                    <p><b>Backend:</b> <a href="http://${IP}:30001/api/docs">http://${IP}:30001/api/docs</a></p>
-                    <p><a href="${BUILD_URL}">View Build</a></p>
-                """,
-                mimeType: 'text/html',
-                to: 'aaftabparmar29@gmail.com'
-            )
+            script {
+                def IP = sh(script: 'cat /tmp/ec2_ip.txt', returnStdout: true).trim()
+                sh "echo '🎉 DEPLOYMENT SUCCESSFUL!'"
+                sh "echo 'Application: http://${IP}:30000'"
+                emailext(
+                    subject: "✅ CAPITALX CD SUCCESS - Build #${BUILD_NUMBER}",
+                    body: """
+                        <h2>🚀 Application Deployed Successfully!</h2>
+                        <p><b>Frontend:</b> <a href="http://${IP}:30000">http://${IP}:30000</a></p>
+                        <p><b>Backend:</b> <a href="http://${IP}:30001/api/docs">http://${IP}:30001/api/docs</a></p>
+                        <p><a href="${BUILD_URL}">View Build</a></p>
+                    """,
+                    mimeType: 'text/html',
+                    to: 'aaftabparmar29@gmail.com'
+                )
+            }
         }
         failure {
             emailext(
