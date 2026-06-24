@@ -45,10 +45,18 @@ pipeline {
     }
     post {
         success {
-            emailext(subject: "✅ EKS CI SUCCESS - #${BUILD_NUMBER}", to: 'aaftabparmar29@gmail.com')
+            emailext(
+                subject: "✅ EKS CI SUCCESS - Build #${BUILD_NUMBER}",
+                body: "Images pushed to ECR successfully!",
+                to: 'aaftabparmar29@gmail.com'
+            )
         }
         failure {
-            emailext(subject: "❌ EKS CI FAILED - #${BUILD_NUMBER}", to: 'aaftabparmar29@gmail.com')
+            emailext(
+                subject: "❌ EKS CI FAILED - Build #${BUILD_NUMBER}",
+                body: "Check Jenkins logs: ${BUILD_URL}",
+                to: 'aaftabparmar29@gmail.com'
+            )
         }
     }
 }

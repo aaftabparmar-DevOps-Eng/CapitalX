@@ -25,10 +25,18 @@ pipeline {
     }
     post {
         success {
-            emailext(subject: "✅ EKS CD SUCCESS - #${BUILD_NUMBER}", to: 'aaftabparmar29@gmail.com')
+            emailext(
+                subject: "✅ EKS CD SUCCESS - Build #${BUILD_NUMBER}",
+                body: "Deployed to EKS successfully!",
+                to: 'aaftabparmar29@gmail.com'
+            )
         }
         failure {
-            emailext(subject: "❌ EKS CD FAILED - #${BUILD_NUMBER}", to: 'aaftabparmar29@gmail.com')
+            emailext(
+                subject: "❌ EKS CD FAILED - Build #${BUILD_NUMBER}",
+                body: "Check Jenkins logs: ${BUILD_URL}",
+                to: 'aaftabparmar29@gmail.com'
+            )
         }
     }
 }
