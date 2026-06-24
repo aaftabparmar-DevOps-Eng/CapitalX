@@ -16,8 +16,6 @@ pipeline {
                         kubectl set image deployment/frontend -n capitalx frontend=${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}
                         kubectl rollout status deployment/backend -n capitalx --timeout=120s
                         kubectl rollout status deployment/frontend -n capitalx --timeout=120s
-                        ALB=$(kubectl get ingress capitalx-ingress -n capitalx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-                        echo "Application: http://${ALB}"
                     '''
                 }
             }
@@ -25,18 +23,10 @@ pipeline {
     }
     post {
         success {
-            emailext(
-                subject: "✅ EKS CD SUCCESS - Build #${BUILD_NUMBER}",
-                body: "Deployed to EKS successfully!",
-                to: 'aaftabparmar29@gmail.com'
-            )
+            echo '✅ EKS CD Pipeline Success!'
         }
         failure {
-            emailext(
-                subject: "❌ EKS CD FAILED - Build #${BUILD_NUMBER}",
-                body: "Check Jenkins logs: ${BUILD_URL}",
-                to: 'aaftabparmar29@gmail.com'
-            )
+            echo '❌ EKS CD Pipeline Failed!'
         }
     }
 }

@@ -19,11 +19,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
-                    sh '''
-                        cd backend && npm install --silent 2>/dev/null || true
-                        npx sonar-scanner -Dsonar.projectKey=capitalx-backend -Dsonar.sources=src -Dsonar.language=ts || true
-                        cd ..
-                    '''
+                    sh 'cd backend && npm install --silent 2>/dev/null; npx sonar-scanner -Dsonar.projectKey=capitalx-backend -Dsonar.sources=src -Dsonar.language=ts || true'
                 }
             }
         }
@@ -45,18 +41,10 @@ pipeline {
     }
     post {
         success {
-            emailext(
-                subject: "✅ EKS CI SUCCESS - Build #${BUILD_NUMBER}",
-                body: "Images pushed to ECR successfully!",
-                to: 'aaftabparmar29@gmail.com'
-            )
+            echo '✅ EKS CI Pipeline Success!'
         }
         failure {
-            emailext(
-                subject: "❌ EKS CI FAILED - Build #${BUILD_NUMBER}",
-                body: "Check Jenkins logs: ${BUILD_URL}",
-                to: 'aaftabparmar29@gmail.com'
-            )
+            echo '❌ EKS CI Pipeline Failed!'
         }
     }
 }
