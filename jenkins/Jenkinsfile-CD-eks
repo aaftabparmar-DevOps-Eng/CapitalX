@@ -22,10 +22,20 @@ pipeline {
     }
     post {
         success {
-            echo '✅ EKS CD Pipeline Success!'
+            emailext (
+                subject: "✅ EKS CD SUCCESS - Build #${BUILD_NUMBER}",
+                mimeType: 'text/html',
+                body: '<h3>Deployed to EKS successfully!</h3>',
+                to: 'aaftabparmar29@gmail.com'
+            )
         }
         failure {
-            echo '❌ EKS CD Pipeline Failed!'
+            emailext (
+                subject: "❌ EKS CD FAILED - Build #${BUILD_NUMBER}",
+                mimeType: 'text/html',
+                body: '<h3>Check Jenkins logs</h3>',
+                to: 'aaftabparmar29@gmail.com'
+            )
         }
     }
 }

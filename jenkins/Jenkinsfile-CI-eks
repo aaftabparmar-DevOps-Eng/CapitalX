@@ -16,6 +16,22 @@ pipeline {
                 sh 'trivy fs --severity HIGH,CRITICAL --no-progress --exit-code 0 . || true'
             }
         }
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh '''
+                        cd backend
+                        npm install
+                        ./node_modules/.bin/sonar-scanner \
+                          -Dsonar.projectKey=capitalx-backend \
+                          -Dsonar.sources=src \
+                          -Dsonar.language=ts \
+                          -Dsonar.sourceEncoding=UTF-8
+                        cd ..
+                    '''
+                }
+            }
+        }
         stage('Docker Build & Push to ECR') {
             steps {
                 withAWS(credentials: 'aws-credentials', region: 'us-east-2') {
@@ -23,10 +39,14 @@ pipeline {
                         aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_URL}
                         docker build -t capitalx-backend:${BUILD_NUMBER} ./backend
                         docker tag capitalx-backend:${BUILD_NUMBER} ${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
+                        docker tag capitalx-backend:${BUILD_NUMBER} ${ECR_URL}/capitalx-backend:latest
                         docker push ${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
+                        docker push ${ECR_URL}/capitalx-backend:latest
                         docker build -t capitalx-frontend:${BUILD_NUMBER} ./frontend
                         docker tag capitalx-frontend:${BUILD_NUMBER} ${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}
+                        docker tag capitalx-frontend:${BUILD_NUMBER} ${ECR_URL}/capitalx-frontend:latest
                         docker push ${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}
+                        docker push ${ECR_URL}/capitalx-frontend:latest
                     '''
                 }
             }
@@ -34,10 +54,20 @@ pipeline {
     }
     post {
         success {
-            echo '✅ EKS CI Pipeline Success!'
+            emailext (
+                subject: "✅ EKS CI SUCCESS - Build #${BUILD_NUMBER}",
+                mimeType: 'text/html',
+                body: '<h3>Images pushed to ECR successfully!</h3>',
+                to: 'aaftabparmar29@gmail.com'
+            )
         }
         failure {
-            echo '❌ EKS CI Pipeline Failed!'
+            emailext (
+                subject: "❌ EKS CI FAILED - Build #${BUILD_NUMBER}",
+                mimeType: 'text/html',
+                body: '<h3>Check Jenkins logs</h3>',
+                to: 'aaftabparmar29@gmail.com'
+            )
         }
     }
 }
