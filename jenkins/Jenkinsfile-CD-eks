@@ -4,7 +4,6 @@ pipeline {
         AWS_REGION = "us-east-2"
         ECR_URL = "410244537877.dkr.ecr.us-east-2.amazonaws.com"
         EKS_CLUSTER = "capitalx-prod"
-        BUILD_NUMBER = "${env.BUILD_ID}"
     }
     stages {
         stage('Deploy to EKS') {
@@ -12,8 +11,8 @@ pipeline {
                 withAWS(credentials: 'aws-credentials', region: 'us-east-2') {
                     sh '''
                         aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}
-                        kubectl set image deployment/backend -n capitalx backend=${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
-                        kubectl set image deployment/frontend -n capitalx frontend=${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}
+                        kubectl set image deployment/backend -n capitalx backend=${ECR_URL}/capitalx-backend:latest
+                        kubectl set image deployment/frontend -n capitalx frontend=${ECR_URL}/capitalx-frontend:latest
                         kubectl rollout status deployment/backend -n capitalx --timeout=120s
                         kubectl rollout status deployment/frontend -n capitalx --timeout=120s
                     '''
