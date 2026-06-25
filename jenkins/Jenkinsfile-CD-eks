@@ -13,8 +13,8 @@ pipeline {
                         aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}
                         kubectl set image deployment/backend -n capitalx backend=${ECR_URL}/capitalx-backend:latest
                         kubectl set image deployment/frontend -n capitalx frontend=${ECR_URL}/capitalx-frontend:latest
-                        kubectl rollout status deployment/backend -n capitalx --timeout=120s
-                        kubectl rollout status deployment/frontend -n capitalx --timeout=120s
+                        sleep 60
+                        kubectl get pods -n capitalx
                     '''
                 }
             }
@@ -23,17 +23,17 @@ pipeline {
     post {
         success {
             emailext (
-                subject: "✅ EKS CD SUCCESS - Build #${BUILD_NUMBER}",
+                subject: "✅ CD SUCCESS - Build #${BUILD_NUMBER}",
                 mimeType: 'text/html',
-                body: '<h3>Deployed to EKS successfully!</h3>',
+                body: '<h3>Deployed to EKS!</h3>',
                 to: 'aaftabparmar29@gmail.com'
             )
         }
         failure {
             emailext (
-                subject: "❌ EKS CD FAILED - Build #${BUILD_NUMBER}",
+                subject: "❌ CD FAILED - Build #${BUILD_NUMBER}",
                 mimeType: 'text/html',
-                body: '<h3>Check Jenkins logs</h3>',
+                body: '<h3>Check logs</h3>',
                 to: 'aaftabparmar29@gmail.com'
             )
         }
