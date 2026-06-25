@@ -21,12 +21,18 @@ pipeline {
                 withAWS(credentials: 'aws-credentials', region: 'us-east-2') {
                     sh '''
                         aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_URL}
+                        
+                        # Get ALB URL
+                        ALB=$(kubectl get ingress capitalx-ingress -n capitalx -o jsonpath="{.status.loadBalancer.ingress[0].hostname}" 2>/dev/null || echo "localhost")
+                        
                         docker build -t capitalx-backend:${BUILD_NUMBER} ./backend
                         docker tag capitalx-backend:${BUILD_NUMBER} ${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
                         docker tag capitalx-backend:${BUILD_NUMBER} ${ECR_URL}/capitalx-backend:latest
                         docker push ${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
                         docker push ${ECR_URL}/capitalx-backend:latest
-                        docker build -t capitalx-frontend:${BUILD_NUMBER} ./frontend
+                        
+                        docker build --build-arg NEXT_PUBLIC_API_URL=http://${ALB}/api/v1 \
+                          -t capitalx-frontend:${BUILD_NUMBER} ./frontend
                         docker tag capitalx-frontend:${BUILD_NUMBER} ${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}
                         docker tag capitalx-frontend:${BUILD_NUMBER} ${ECR_URL}/capitalx-frontend:latest
                         docker push ${ECR_URL}/capitalx-frontend:${BUILD_NUMBER}

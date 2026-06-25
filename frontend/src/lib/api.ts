@@ -8,7 +8,6 @@ const api: AxiosInstance = axios.create({
   withCredentials: false,
 });
 
-// Request interceptor — attach access token
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('accessToken');
@@ -17,7 +16,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor — auto-refresh on 401
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
@@ -38,7 +36,6 @@ api.interceptors.response.use(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
           window.location.href = '/login';
         }
       }
