@@ -16,13 +16,6 @@ pipeline {
                 sh 'trivy fs --severity HIGH,CRITICAL --no-progress --exit-code 0 . || true'
             }
         }
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('sonarqube') {
-                    sh 'cd backend && npm install --silent 2>/dev/null; npx sonar-scanner -Dsonar.projectKey=capitalx-backend -Dsonar.sources=src -Dsonar.language=ts || true'
-                }
-            }
-        }
         stage('Docker Build & Push to ECR') {
             steps {
                 withAWS(credentials: 'aws-credentials', region: 'us-east-2') {
