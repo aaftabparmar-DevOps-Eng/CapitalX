@@ -5,34 +5,45 @@ metadata:
   namespace: capitalx
 spec:
   replicas: 3
+
   selector:
     matchLabels:
       app: frontend
+
   template:
     metadata:
       labels:
         app: frontend
+
     spec:
       containers:
       - name: frontend
         image: aaftabparmar217/capitalx-frontend:latest
+        imagePullPolicy: Always
+
         ports:
         - containerPort: 3000
+
         env:
         - name: NEXT_PUBLIC_API_URL
-          value: "http://16.59.47.165:30001/api/v1"
+          value: "http://k8s-capitalx-capitalx-480de48135-173850900.us-east-2.elb.amazonaws.com/api/v1"
+
         - name: NODE_ENV
           value: production
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend
   namespace: capitalx
+
 spec:
   type: ClusterIP
+
   selector:
     app: frontend
+
   ports:
   - port: 3000
     targetPort: 3000
