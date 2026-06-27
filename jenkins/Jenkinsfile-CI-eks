@@ -22,8 +22,9 @@ pipeline {
                     sh '''
                         aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_URL}
                         
-                        # Get ALB URL
                         ALB=$(kubectl get ingress capitalx-ingress -n capitalx -o jsonpath="{.status.loadBalancer.ingress[0].hostname}" 2>/dev/null || echo "localhost")
+                        
+                        echo "Building with ALB: ${ALB}"
                         
                         docker build -t capitalx-backend:${BUILD_NUMBER} ./backend
                         docker tag capitalx-backend:${BUILD_NUMBER} ${ECR_URL}/capitalx-backend:${BUILD_NUMBER}
