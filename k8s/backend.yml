@@ -58,7 +58,7 @@ metadata:
   name: backend
   namespace: capitalx
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: backend
   ports:
